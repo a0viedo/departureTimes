@@ -4,21 +4,12 @@
 /**
  * Module dependencies.
  */
-    var debug = require('debug')('departureTime:server');
-    var http = require('http');
-    //var MongoClient = require('mongodb').MongoClient;
-    var logger = require('../lib/logger');
-    var server;
+var debug = require('debug')('departureTime:server');
+var http = require('http');
+var server;
 require('../app').initialize(function(err, app) {
 
-    //var insertStops = require('../lib/insertStops');
-    //var url = 'mongodb://localhost:27017/departureTimesTest';
-
-    /**
-     * Get port from environment and store in Express.
-     */
-
-    var port = normalizePort(process.env.PORT || '3000');
+    var port = normalizePort(process.env.PORT || '8000');
     app.set('port', port);
 
     /**
@@ -31,42 +22,13 @@ require('../app').initialize(function(err, app) {
      * Listen on provided port, on all network interfaces.
      */
 
-
-
-    // require('../lib/mongoUtils.js').connectToServer(function(err){
-    //   if (err) {
-    //     throw err;
-    //   }
-
     server.listen(port);
     server.on('error', onError);
     server.on('listening', onListening);
-    // });
+
+    app.io.attach(server);
+
 });
-
-
-
-
-// MongoClient.connect(url, function(err, db) {
-//     if (err) {
-//         logger.error(err);
-//         throw err;
-//     }
-//     db.collection('stops').count({}, function(err, res) {
-//       logger.info(res);
-//     });
-//     // insertStops(db, function(err) {
-//     //     //ready to serve everything;
-//     //     if (err) {
-//     //         logger.error(err);
-//     //         db.close();
-//     //         process.exit(1);
-//     //     }
-//     //     logger.info('All the stop data was inserted correctly.');
-//     // });
-// });
-
-
 
 /**
  * Normalize a port into a number, string, or false.
