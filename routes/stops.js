@@ -54,17 +54,4 @@ function cursorToJSONTransform(cursor, target) {
     });
 }
 
-// function findNear(collection, property, lon, lat) {
-//     var filter = {};
-//     filter[property] = {
-//             $near: {
-//                 $geometry: {
-//                     type: 'Point',
-//                     coordinates: [lon, lat]
-//                 }
-//             }
-//         };
-//     return collection.find(filter);
-// }
-
 module.exports = router;
