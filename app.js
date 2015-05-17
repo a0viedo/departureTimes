@@ -1,49 +1,74 @@
 var express = require('express');
 var path = require('path');
-var logger = require('morgan');
+var httpLogger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
-
+var exphbs = require('express-handlebars');
+var logger = require('./lib/logger.js');
 var utils = require('./lib/utils.js');
+
+var insertStops = require('./lib/insertStops.js');
 
 var app;
 var mongoUtils = require('./lib/mongoUtils.js');
-var db;
 
 function startApp() {
     var routes = require('./routes/index');
     var stops = require('./routes/stops');
 
     app = express();
-    db = mongoUtils.getDB();
 
-    var server = require('http').createServer(app);
-    var io = require('socket.io')(server);
+    var io = require('socket.io')();
+    app.io = io;
 
     io.on('connection', function(socket) {
+        logger.info('Client connected.');
         socket.on('getClosestStops', function(data) {
-            if (!data.geo) {
-
+            if (!data.longitude || !data.latitude) {
+                return logger.info('[websockets] Received invalid geolocation data.', data);
             }
-            var stopsList = mongoUtils.findNear('stops', 'loc', data.geo.lon, data.geo.lat)
-                .toArray();
-            stopsList.forEach(function(stop) {
-                stop.distance = utils.getDistance({
-                    latitude: stop.lat,
-                    longitude: stop.lon
-                }, {
-                    latitude: data.geo.lat,
-                    longitude: data.geo.lon
-                });
+
+            logger.info('[websocket] Received \'getClosestStops\' event.');
+
+            utils.getClosestStops(data, data.limit || 5, function(err, stopsList) {
+                if (err) {
+                    logger.error(err);
+                    err.stack = null;
+                    socket.emit(err);
+                    return;
+                }
+
+                socket.stopsList = stopsList;
+                socket.emit('closestStops', stopsList);
+
+                setInterval(function() {
+                    utils.getStopsDepartures(data, socket.stopsList,
+                        function(err, stopsList) {
+                            if (err) {
+                                logger.error(err);
+                                err.stack = null;
+                                socket.emit('error', err);
+                                return;
+                            }
+
+                            socket.emit('closestStopsUpdate', stopsList);
+                        });
+                }, 10000);
             });
-            socket.emit('closestStops', stopsList);
+        });
+
+        socket.on('error', function(err) {
+            logger.error(err);
         });
     });
 
-    app.set('views', path.join(__dirname, 'views'));
-    app.set('view engine', 'jade');
+    app.engine('.hbs', exphbs({
+        defaultLayout: 'main',
+        extname: '.hbs'
+    }));
+    app.set('view engine', '.hbs');
 
-    app.use(logger('dev'));
+    app.use(httpLogger('dev'));
     app.use(bodyParser.json());
     app.use(bodyParser.urlencoded({
         extended: false
@@ -67,7 +92,8 @@ function startApp() {
             res.status(err.status || 500);
             res.render('error', {
                 message: err.message,
-                error: err
+                error: err,
+                statusCode: err.status
             });
         });
     }
@@ -77,20 +103,29 @@ function startApp() {
         res.status(err.status || 500);
         res.render('error', {
             message: err.message,
-            error: {}
+            error: {},
+            statusCode: err.status
         });
     });
 }
 
 module.exports = {
     initialize: function(callback) {
-        require('./lib/mongoUtils.js').connectToServer(function(err) {
+        require('./lib/mongoUtils.js').connectToServer(function(err, db) {
             if (err) {
                 logger.error(err);
                 return process.exit(1);
             }
-            startApp();
-            callback(null, app);
+
+            insertStops(db, function(err) {
+                if (err) {
+                    logger.error(err);
+                    return process.exit(1);
+                }
+
+                startApp();
+                callback(null, app);
+            });
         });
     }
 };

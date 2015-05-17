@@ -7,9 +7,8 @@
 var debug = require('debug')('departureTime:server');
 var http = require('http');
 var server;
+var port = normalizePort(process.env.OPENSHIFT_NODEJS_PORT || '8000');
 require('../app').initialize(function(err, app) {
-
-    var port = normalizePort(process.env.PORT || '8000');
     app.set('port', port);
 
     /**
@@ -22,7 +21,7 @@ require('../app').initialize(function(err, app) {
      * Listen on provided port, on all network interfaces.
      */
 
-    server.listen(port);
+    server.listen(port, process.env.OPENSHIFT_NODEJS_IP);
     server.on('error', onError);
     server.on('listening', onListening);
 
