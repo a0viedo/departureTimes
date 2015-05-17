@@ -1,5 +1,5 @@
 $(function() {
-    var socket = io.connect('http://192.168.1.102:8000');
+    var socket = io.connect('http://localhost:8000');
     var timeContainers;
     var updateTimer;
 
@@ -7,7 +7,10 @@ $(function() {
         waitingDialog.show();
 
         navigator.geolocation.getCurrentPosition(function(position) {
-            socket.emit('getClosestStops', position.coords);
+            socket.emit('getClosestStops', {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude
+            });
         }, function(err) {
             console.log('An error ocurred while getting geolocation data:' + err);
         }, {
